@@ -1,0 +1,20 @@
+# OpeniLink App Runner 配置
+# 文档: https://github.com/openilink/openilink-app-runner
+
+hub_url: "https://hub.openilink.com"
+app_token: "app_your_token_here"
+max_output: 2000
+
+commands:
+  hn:
+    description: "HackerNews 热门"
+    exec: "opencli hackernews top --format json"
+    timeout: 10
+  weather:
+    description: "查天气"
+    exec: "curl -s 'wttr.in/${args}?format=3'"
+    timeout: 5
+  ip:
+    description: "查公网 IP"
+    exec: "curl -s ifconfig.me"
+    timeout: 5
