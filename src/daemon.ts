@@ -157,3 +157,46 @@ export function uninstall(): void {
     process.exit(1);
   }
 }
+
+export function status(): void {
+  if (os.platform() === "linux") {
+    const unitPath = path.join(os.homedir(), `.config/systemd/user/${SERVICE_NAME}.service`);
+    if (!fs.existsSync(unitPath)) {
+      console.log("⚪ 未安装（服务文件不存在）");
+      return;
+    }
+    try {
+      const out = execSync(`systemctl --user status ${SERVICE_NAME} 2>&1`, { encoding: "utf-8" });
+      if (out.includes("active (running)")) {
+        console.log("🟢 运行中");
+      } else if (out.includes("inactive")) {
+        console.log("⚫ 已停止");
+      } else if (out.includes("failed")) {
+        console.log("🔴 已崩溃");
+      }
+      console.log(out.trim());
+    } catch (err: any) {
+      console.log("⚫ 未运行");
+      if (err.stdout) console.log(err.stdout.toString().trim());
+    }
+  } else if (os.platform() === "darwin") {
+    const plistPath = path.join(os.homedir(), "Library/LaunchAgents/com.openilink.app-runner.plist");
+    if (!fs.existsSync(plistPath)) {
+      console.log("⚪ 未安装（plist 不存在）");
+      return;
+    }
+    try {
+      const out = execSync(`launchctl list | grep openilink`, { encoding: "utf-8" });
+      if (out.trim()) {
+        console.log("🟢 运行中");
+        console.log(out.trim());
+      } else {
+        console.log("⚫ 未运行");
+      }
+    } catch {
+      console.log("⚫ 未运行");
+    }
+  } else {
+    console.log("不支持的平台");
+  }
+}

@@ -4,7 +4,7 @@ import { loadConfig, saveConfig, initConfig, getConfigPath } from "../src/config
 import { syncTools } from "../src/sync";
 import { HubConnection } from "../src/hub";
 import { createHandler } from "../src/handler";
-import { install, uninstall } from "../src/daemon";
+import { install, uninstall, status } from "../src/daemon";
 
 const program = new Command();
 
@@ -156,6 +156,13 @@ program
   .description("卸载系统服务")
   .action(() => {
     uninstall();
+  });
+
+program
+  .command("status")
+  .description("查看服务状态")
+  .action(() => {
+    status();
   });
 
 // Default: show help
