@@ -20,10 +20,22 @@ function getNodePath(): string {
 
 // ========== Linux (systemd) ==========
 
+function getRealUser(): { name: string; home: string } {
+  const sudoUser = process.env.SUDO_USER;
+  if (sudoUser) {
+    try {
+      const home = execSync(`eval echo ~${sudoUser}`, { encoding: "utf-8", shell: "/bin/sh" }).trim();
+      return { name: sudoUser, home };
+    } catch {}
+  }
+  return { name: os.userInfo().username, home: os.homedir() };
+}
+
 function systemdUnit(configPath: string): string {
   const absConfig = path.resolve(configPath);
   const binPath = getBinPath();
   const workDir = path.dirname(absConfig);
+  const user = getRealUser();
 
   return `[Unit]
 Description=OpeniLink App Runner
@@ -31,6 +43,7 @@ After=network.target
 
 [Service]
 Type=simple
+User=${user.name}
 ExecStart=${binPath} start --config ${absConfig}
 WorkingDirectory=${workDir}
 Restart=always
@@ -138,7 +151,17 @@ function uninstallLaunchd(): void {
 // ========== Public API ==========
 
 export function install(configPath: string): void {
-  const absConfig = path.resolve(configPath);
+  let absConfig = path.resolve(configPath);
+
+  // If running under sudo and config not found, try the real user's config path
+  if (!fs.existsSync(absConfig) && process.env.SUDO_USER) {
+    const user = getRealUser();
+    const userConfig = path.join(user.home, ".config/openilink-app-runner/runner.yaml");
+    if (fs.existsSync(userConfig)) {
+      absConfig = userConfig;
+    }
+  }
+
   if (!fs.existsSync(absConfig)) {
     console.error(`配置文件不存在: ${absConfig}`);
     console.error(`请先运行: openilink-app-runner init --hub-url <url> --token <token>`);

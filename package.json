@@ -1,6 +1,6 @@
 {
   "name": "openilink-app-runner",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Run local commands as OpeniLink Hub App tools — bridge CLI to WeChat",
   "bin": {
     "openilink-app-runner": "dist/bin/runner.js"
