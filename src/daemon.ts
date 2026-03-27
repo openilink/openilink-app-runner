@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { execSync } from "child_process";
+import { getConfigPath } from "./config";
 
 const SERVICE_NAME = "openilink-app-runner";
 
@@ -9,33 +10,16 @@ function getBinPath(): string {
   try {
     return execSync("which openilink-app-runner", { encoding: "utf-8" }).trim();
   } catch {
-    // Fallback: resolve from node_modules
     return path.resolve(__dirname, "../bin/runner.js");
   }
 }
 
-function getNodePath(): string {
-  return process.execPath;
-}
-
-// ========== Linux (systemd) ==========
-
-function getRealUser(): { name: string; home: string } {
-  const sudoUser = process.env.SUDO_USER;
-  if (sudoUser) {
-    try {
-      const home = execSync(`eval echo ~${sudoUser}`, { encoding: "utf-8", shell: "/bin/sh" }).trim();
-      return { name: sudoUser, home };
-    } catch {}
-  }
-  return { name: os.userInfo().username, home: os.homedir() };
-}
+// ========== Linux (systemd --user) ==========
 
 function systemdUnit(configPath: string): string {
   const absConfig = path.resolve(configPath);
   const binPath = getBinPath();
   const workDir = path.dirname(absConfig);
-  const user = getRealUser();
 
   return `[Unit]
 Description=OpeniLink App Runner
@@ -43,7 +27,6 @@ After=network.target
 
 [Service]
 Type=simple
-User=${user.name}
 ExecStart=${binPath} start --config ${absConfig}
 WorkingDirectory=${workDir}
 Restart=always
@@ -51,40 +34,41 @@ RestartSec=5
 Environment=NODE_ENV=production
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 `;
 }
 
 function installSystemd(configPath: string): void {
-  const unitPath = `/etc/systemd/system/${SERVICE_NAME}.service`;
-  const unit = systemdUnit(configPath);
+  const userDir = path.join(os.homedir(), ".config/systemd/user");
+  fs.mkdirSync(userDir, { recursive: true });
+  const unitPath = path.join(userDir, `${SERVICE_NAME}.service`);
 
-  fs.writeFileSync(unitPath, unit);
-  execSync("systemctl daemon-reload");
-  execSync(`systemctl enable ${SERVICE_NAME}`);
-  execSync(`systemctl start ${SERVICE_NAME}`);
+  fs.writeFileSync(unitPath, systemdUnit(configPath));
+  execSync(`systemctl --user daemon-reload`);
+  execSync(`systemctl --user enable ${SERVICE_NAME}`);
+  execSync(`systemctl --user start ${SERVICE_NAME}`);
+  // Enable lingering so user services run without login
+  try {
+    execSync(`loginctl enable-linger ${os.userInfo().username}`, { stdio: "ignore" });
+  } catch {}
 
-  console.log(`✓ 已安装 systemd 服务`);
+  console.log(`✓ 已安装 systemd 用户服务（无需 sudo）`);
   console.log(`  服务文件: ${unitPath}`);
   console.log(`  配置文件: ${path.resolve(configPath)}`);
-  console.log(`  查看状态: systemctl status ${SERVICE_NAME}`);
-  console.log(`  查看日志: journalctl -u ${SERVICE_NAME} -f`);
+  console.log(`  查看状态: systemctl --user status ${SERVICE_NAME}`);
+  console.log(`  查看日志: journalctl --user -u ${SERVICE_NAME} -f`);
 }
 
 function uninstallSystemd(): void {
-  try {
-    execSync(`systemctl stop ${SERVICE_NAME}`, { stdio: "ignore" });
-  } catch {}
-  try {
-    execSync(`systemctl disable ${SERVICE_NAME}`, { stdio: "ignore" });
-  } catch {}
+  try { execSync(`systemctl --user stop ${SERVICE_NAME}`, { stdio: "ignore" }); } catch {}
+  try { execSync(`systemctl --user disable ${SERVICE_NAME}`, { stdio: "ignore" }); } catch {}
 
-  const unitPath = `/etc/systemd/system/${SERVICE_NAME}.service`;
+  const unitPath = path.join(os.homedir(), `.config/systemd/user/${SERVICE_NAME}.service`);
   if (fs.existsSync(unitPath)) {
     fs.unlinkSync(unitPath);
-    execSync("systemctl daemon-reload");
+    execSync(`systemctl --user daemon-reload`);
   }
-  console.log(`✓ 已卸载 systemd 服务`);
+  console.log(`✓ 已卸载 systemd 用户服务`);
 }
 
 // ========== macOS (launchd) ==========
@@ -121,46 +105,30 @@ function launchdPlist(configPath: string): string {
 }
 
 function installLaunchd(configPath: string): void {
-  const plistPath = path.join(os.homedir(), `Library/LaunchAgents/com.openilink.app-runner.plist`);
-  const plist = launchdPlist(configPath);
-
+  const plistPath = path.join(os.homedir(), "Library/LaunchAgents/com.openilink.app-runner.plist");
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
-  fs.writeFileSync(plistPath, plist);
+  fs.writeFileSync(plistPath, launchdPlist(configPath));
 
-  try {
-    execSync(`launchctl unload ${plistPath}`, { stdio: "ignore" });
-  } catch {}
+  try { execSync(`launchctl unload ${plistPath}`, { stdio: "ignore" }); } catch {}
   execSync(`launchctl load ${plistPath}`);
 
-  console.log(`✓ 已安装 launchd 服务`);
+  console.log(`✓ 已安装 launchd 服务（无需 sudo）`);
   console.log(`  配置文件: ${plistPath}`);
   console.log(`  日志: ~/Library/Logs/openilink-app-runner.log`);
 }
 
 function uninstallLaunchd(): void {
-  const plistPath = path.join(os.homedir(), `Library/LaunchAgents/com.openilink.app-runner.plist`);
-  try {
-    execSync(`launchctl unload ${plistPath}`, { stdio: "ignore" });
-  } catch {}
-  if (fs.existsSync(plistPath)) {
-    fs.unlinkSync(plistPath);
-  }
+  const plistPath = path.join(os.homedir(), "Library/LaunchAgents/com.openilink.app-runner.plist");
+  try { execSync(`launchctl unload ${plistPath}`, { stdio: "ignore" }); } catch {}
+  if (fs.existsSync(plistPath)) fs.unlinkSync(plistPath);
   console.log(`✓ 已卸载 launchd 服务`);
 }
 
 // ========== Public API ==========
 
-export function install(configPath: string): void {
-  let absConfig = path.resolve(configPath);
-
-  // If running under sudo and config not found, try the real user's config path
-  if (!fs.existsSync(absConfig) && process.env.SUDO_USER) {
-    const user = getRealUser();
-    const userConfig = path.join(user.home, ".config/openilink-app-runner/runner.yaml");
-    if (fs.existsSync(userConfig)) {
-      absConfig = userConfig;
-    }
-  }
+export function install(configPath?: string): void {
+  const resolved = configPath || getConfigPath();
+  const absConfig = path.resolve(resolved);
 
   if (!fs.existsSync(absConfig)) {
     console.error(`配置文件不存在: ${absConfig}`);
@@ -169,12 +137,12 @@ export function install(configPath: string): void {
   }
 
   if (os.platform() === "darwin") {
-    installLaunchd(configPath);
+    installLaunchd(absConfig);
   } else if (os.platform() === "linux") {
-    installSystemd(configPath);
+    installSystemd(absConfig);
   } else {
     console.error(`不支持的平台: ${os.platform()}`);
-    console.error(`请手动运行: openilink-app-runner start --config ${absConfig}`);
+    console.error(`请手动运行: openilink-app-runner start`);
     process.exit(1);
   }
 }
