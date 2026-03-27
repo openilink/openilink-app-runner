@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import * as fs from "fs";
+import * as path from "path";
 import { loadConfig, saveConfig, initConfig, getConfigPath } from "../src/config";
 import { syncTools } from "../src/sync";
 import { HubConnection } from "../src/hub";
 import { createHandler } from "../src/handler";
 import { install, uninstall, status } from "../src/daemon";
 
+const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf-8"));
 const program = new Command();
 
 program
   .name("openilink-app-runner")
   .description("Run local commands as OpeniLink Hub App tools")
-  .version("0.1.0");
+  .version(pkg.version);
 
 program
   .command("init")
@@ -109,7 +112,7 @@ program
     const config = loadConfig(getConfigPath(opts.config));
     const cmdCount = Object.keys(config.commands).length;
 
-    console.log(`openilink-app-runner v0.1.0`);
+    console.log(`openilink-app-runner v${pkg.version}`);
     console.log(`Hub: ${config.hub_url}`);
     console.log(`命令: ${cmdCount} 个`);
 
