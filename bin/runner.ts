@@ -4,6 +4,7 @@ import { loadConfig, saveConfig, initConfig, getConfigPath } from "../src/config
 import { syncTools } from "../src/sync";
 import { HubConnection } from "../src/hub";
 import { createHandler } from "../src/handler";
+import { install, uninstall } from "../src/daemon";
 
 const program = new Command();
 
@@ -140,6 +141,21 @@ program
     });
 
     hub.connect();
+  });
+
+program
+  .command("install")
+  .description("注册为系统服务（systemd / launchd），开机自启")
+  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .action((opts) => {
+    install(getConfigPath(opts.config));
+  });
+
+program
+  .command("uninstall")
+  .description("卸载系统服务")
+  .action(() => {
+    uninstall();
   });
 
 // Default: show help

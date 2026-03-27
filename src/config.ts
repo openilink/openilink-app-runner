@@ -1,11 +1,28 @@
 import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import * as yaml from "js-yaml";
 import { RunnerConfig } from "./types";
 
-const DEFAULT_PATH = "runner.yaml";
+function defaultConfigDir(): string {
+  const platform = os.platform();
+  const home = os.homedir();
+
+  if (process.getuid?.() === 0) {
+    return "/etc/openilink-app-runner";
+  }
+  if (platform === "darwin") {
+    return path.join(home, "Library/Application Support/openilink-app-runner");
+  }
+  return path.join(home, ".config/openilink-app-runner");
+}
 
 export function getConfigPath(custom?: string): string {
-  return custom || DEFAULT_PATH;
+  if (custom) return custom;
+  // Check current directory first
+  if (fs.existsSync("runner.yaml")) return "runner.yaml";
+  // Then standard directory
+  return path.join(defaultConfigDir(), "runner.yaml");
 }
 
 export function loadConfig(configPath: string): RunnerConfig {
@@ -22,6 +39,10 @@ export function loadConfig(configPath: string): RunnerConfig {
 }
 
 export function saveConfig(configPath: string, config: RunnerConfig): void {
+  const dir = path.dirname(configPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   const raw = yaml.dump(config, { lineWidth: -1, noRefs: true });
   fs.writeFileSync(configPath, raw, "utf-8");
 }
