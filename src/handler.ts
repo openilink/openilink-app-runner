@@ -2,14 +2,14 @@ import { RunnerConfig, HubEvent } from "./types";
 import { executeCommand } from "./executor";
 
 export function createHandler(config: RunnerConfig) {
-  return async (event: HubEvent, sendReply: (content: string) => void) => {
+  return async (event: HubEvent, sendReply: (content: string, to?: string) => void) => {
     if (event.event.type !== "command") return;
 
     const cmdName = event.event.data.command as string;
     const text = (event.event.data.text as string) || "";
     const sender = event.event.data.sender as any;
 
-    console.log(`← /${cmdName} ${text} (from ${sender?.name || "unknown"})`);
+    console.log(`← /${cmdName} ${text} (from ${sender?.id || "unknown"})`);
 
     const cmdConfig = config.commands[cmdName];
     if (!cmdConfig) {

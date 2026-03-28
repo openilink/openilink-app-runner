@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { RunnerConfig, HubEvent } from "./types";
 
-export type EventHandler = (event: HubEvent, sendReply: (content: string) => void) => void;
+export type EventHandler = (event: HubEvent, sendReply: (content: string, to?: string) => void) => void;
 
 export class HubConnection {
   private ws: WebSocket | null = null;
@@ -41,7 +41,10 @@ export class HubConnection {
           return;
         }
         if (msg.type === "event") {
-          this.onEvent(msg as HubEvent, (content) => this.sendReply(content));
+          const ev = msg as HubEvent;
+          const sender = ev.event.data?.sender?.id as string || "";
+          const traceId = ev.trace_id || "";
+          this.onEvent(ev, (content, to) => this.sendReply(content, to || sender, traceId));
           return;
         }
         if (msg.type === "pong" || msg.type === "ack") return;
@@ -68,9 +71,11 @@ export class HubConnection {
     });
   }
 
-  sendReply(content: string): void {
+  sendReply(content: string, to: string, traceId?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: "send", content }));
+      const msg: Record<string, string> = { type: "send", content, to };
+      if (traceId) msg.trace_id = traceId;
+      this.ws.send(JSON.stringify(msg));
     }
   }
 
