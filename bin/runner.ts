@@ -19,18 +19,19 @@ program
 program
   .command("init")
   .description("初始化配置文件")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .requiredOption("--hub-url <url>", "Hub URL")
   .requiredOption("--token <token>", "App Token")
   .action((opts) => {
-    initConfig(opts.config, opts.hubUrl, opts.token);
-    console.log(`✓ 配置已写入 ${opts.config}`);
+    const configPath = opts.config || getConfigPath();
+    initConfig(configPath, opts.hubUrl, opts.token);
+    console.log(`✓ 配置已写入 ${configPath}`);
   });
 
 program
   .command("add <name> <exec>")
   .description("添加命令")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .option("-d, --desc <description>", "命令描述")
   .option("-t, --timeout <seconds>", "超时时间", "30")
   .action(async (name, exec, opts) => {
@@ -55,7 +56,7 @@ program
 program
   .command("remove <name>")
   .description("删除命令")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .action(async (name, opts) => {
     const configPath = getConfigPath(opts.config);
     const config = loadConfig(configPath);
@@ -78,7 +79,7 @@ program
 program
   .command("list")
   .description("查看已配置的命令")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .action((opts) => {
     const config = loadConfig(getConfigPath(opts.config));
     const cmds = Object.entries(config.commands);
@@ -98,7 +99,7 @@ program
 program
   .command("sync")
   .description("手动同步命令到 Hub")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .action(async (opts) => {
     const config = loadConfig(getConfigPath(opts.config));
     await syncTools(config);
@@ -107,7 +108,7 @@ program
 program
   .command("start")
   .description("启动 runner，连接 Hub 并监听命令")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .action(async (opts) => {
     const config = loadConfig(getConfigPath(opts.config));
     const cmdCount = Object.keys(config.commands).length;
@@ -149,7 +150,7 @@ program
 program
   .command("install")
   .description("注册为系统服务（systemd / launchd），开机自启")
-  .option("-c, --config <path>", "配置文件路径", "runner.yaml")
+  .option("-c, --config <path>", "配置文件路径")
   .action((opts) => {
     install(getConfigPath(opts.config));
   });
