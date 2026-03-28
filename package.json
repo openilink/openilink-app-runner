@@ -1,17 +1,26 @@
 {
   "name": "openilink-app-runner",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Run local commands as OpeniLink Hub App tools — bridge CLI to WeChat",
   "bin": {
     "openilink-app-runner": "dist/bin/runner.js"
   },
-  "files": ["dist/", "runner.example.yaml", "README.md"],
+  "files": [
+    "dist/",
+    "runner.example.yaml",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["openilink", "wechat", "cli", "bot"],
+  "keywords": [
+    "openilink",
+    "wechat",
+    "cli",
+    "bot"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
