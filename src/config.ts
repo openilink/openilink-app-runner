@@ -27,7 +27,9 @@ export function getConfigPath(custom?: string): string {
 
 export function loadConfig(configPath: string): RunnerConfig {
   if (!fs.existsSync(configPath)) {
-    throw new Error(`Config file not found: ${configPath}`);
+    console.error(`配置文件不存在: ${configPath}`);
+    console.error(`\n使用 init 创建:\n  openilink-app-runner init --hub-url http://localhost:9800 --token <app_token>`);
+    process.exit(1);
   }
   const raw = fs.readFileSync(configPath, "utf-8");
   const config = yaml.load(raw) as RunnerConfig;
