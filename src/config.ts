@@ -19,9 +19,6 @@ function defaultConfigDir(): string {
 
 export function getConfigPath(custom?: string): string {
   if (custom) return custom;
-  // Check current directory first
-  if (fs.existsSync("runner.yaml")) return "runner.yaml";
-  // Then standard directory
   return path.join(defaultConfigDir(), "runner.yaml");
 }
 
